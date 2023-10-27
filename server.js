@@ -5,6 +5,9 @@ const dbconfig = require('./config/database');
 const connection = mysql.createConnection(dbconfig);
 const port = 8080;
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
 // Routers
 const authRouter = require('./routes/auth')(connection);
 app.use('/', authRouter);
