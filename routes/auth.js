@@ -14,9 +14,82 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 module.exports = (connection) => {
+  router.get('/friends/list', (req, res) => {
+    const id = req.query.id;
+
+    const sql =
+      'SELECT Users.* FROM Users JOIN Friendship ON Users.id = Friendship.to_id WHERE Friendship.from_id = ?';
+    connection.query(sql, [id], (error, rows) => {
+      if (error) {
+        console.error('Add Friend Error: ', error);
+        console.error('Error Code: ', error.code);
+        // 400 에러 전송
+        return res.status(400).json({
+          status: false,
+          message: error.code,
+          data: null,
+        });
+      }
+      // 친구 목록 전송
+      return res.json({
+        status: true,
+        message: '',
+        data: rows,
+      });
+    });
+  });
+
+  router.post('/friends/add', (req, res) => {
+    const body = req.body;
+    const from_id = body.from_id;
+    const to_id = body.to_id;
+
+    const sql = 'INSERT INTO Friendship (from_id, to_id) VALUES(?, ?)';
+    connection.query(sql, [from_id, to_id], (error, rows) => {
+      if (error) {
+        // 400 에러 전송
+        console.error('Add Friend Error: ', error);
+        console.error('Error Code: ', error.code);
+        return res.status(400).send(false);
+      }
+
+      // 친구 추가 성공
+      return res.send(true);
+    });
+  });
+
   router.get('/test', (req, res) => {
     return res.json({
       message: 'success',
+    });
+  });
+
+  // id로 유저 정보 가져오기
+  router.get('/user', (req, res) => {
+    const id = req.query.id;
+    const sql = 'SELECT * FROM Users WHERE id = ?';
+    connection.query(sql, [id], (error, rows) => {
+      if (error) {
+        // 400 에러 전송
+        return res.status(400).json({
+          status: false,
+          message: error.code,
+          data: null,
+        });
+      }
+      if (rows.length == 0) {
+        // 400 에러 전송
+        return res.status(400).json({
+          status: false,
+          message: '회원정보가 존재하지 않습니다',
+          data: null,
+        });
+      }
+      return res.json({
+        status: true,
+        message: '',
+        data: rows[0],
+      });
     });
   });
 
