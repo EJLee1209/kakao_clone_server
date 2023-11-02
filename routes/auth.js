@@ -14,6 +14,24 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 module.exports = (connection) => {
+  router.post('/friends/delete', (req, res) => {
+    const body = req.body;
+    const from_id = body.from_id;
+    const to_id = body.to_id;
+
+    const sql = 'DELETE FROM Friendship WHERE from_id = ? AND to_id = ?';
+    connection.query(sql, [from_id, to_id], (error, rows) => {
+      if (error) {
+        console.error('Add Friend Error: ', error);
+        console.error('Error Code: ', error.code);
+        // 400 에러 전송
+        return res.status(400).send(false);
+      }
+
+      return res.send(true);
+    });
+  });
+
   router.get('/friends/list', (req, res) => {
     const id = req.query.id;
 
@@ -91,6 +109,74 @@ module.exports = (connection) => {
         data: rows[0],
       });
     });
+  });
+
+  // 유저 프로필 업데이트
+  router.put('/user/update', upload.single('image'), (req, res) => {
+    try {
+      const body = req.body;
+      const id = body.id;
+      const name = body.name;
+      const originalImagePath = body.originalImagePath;
+      const stateMessage = body.stateMessage;
+      const imagePath = req.file ? req.file.path : originalImagePath;
+
+      const sql =
+        'UPDATE Users SET name = ?, state_message = ?, profile_image_path = ? WHERE id = ?';
+      connection.query(
+        sql,
+        [name, stateMessage, imagePath, id],
+        (error, rows) => {
+          if (error) {
+            console.error('Register Error: ', error);
+            console.error('Error Code: ', error.code);
+
+            // 프로필 업데이트 실패했으므로 업로드한 이미지가 있으면 삭제
+            if (imagePath) {
+              fs.unlink(imagePath, (fsError) => {
+                if (fsError) {
+                  console.error('Error deleting file : ', fsError);
+                  return;
+                }
+                console.log('image file deleted successfully');
+              });
+            }
+
+            // 400 에러 전송
+            return res.status(400).json({
+              status: false,
+              message: error.code,
+              data: null,
+            });
+          }
+
+          const user = {
+            id: id,
+            name: name,
+            password: '',
+            imagePath: imagePath,
+            stateMessage: stateMessage,
+          };
+          console.log('update user: ' + user.id);
+
+          // 회원가입 성공
+          return res.json({
+            status: true,
+            message: '프로필 업데이트 완료',
+            data: user,
+          });
+        }
+      );
+    } catch (error) {
+      // 이미지 업로드 중 예외 발생
+      console.error('Multer Error: ', error);
+      console.error('Error Code: ', error.code);
+      return res.status(500).json({
+        status: false,
+        message: '프로필 업데이트 실패(이미지 업로드 중 문제가 발생했습니다)',
+        data: null,
+      });
+    }
   });
 
   // 로그인
